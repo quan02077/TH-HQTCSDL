@@ -105,12 +105,13 @@ go
 --cập nhật dtb và xếp loại 
 update SINHVIEN
 set DIEMTB = (
-                select round(sum(mh.sotc * kq.diemthi) / sum(mh.sotc), 2)
+                select round(sum(mh.SOTC * kq.DIEMTHI) / sum(mh.SOTC), 2)
                 from KETQUA kq, MONHOC mh
-                where kq.mamh = mh.mamh and kq.masv = SINHVIEN.masv
+                where kq.MAMH = mh.MAMH and kq.MASV = SINHVIEN.MASV
              )
+where SINHVIEN.MASV = 'SV11'
 go
-
+select * from SINHVIEN 
 -- Đã điền điều kiện xếp loại
 update SINHVIEN
 set XEPLOAI = case
@@ -189,11 +190,14 @@ go
 select * from SINHVIEN
 go
 --Bước 2:
+select * from SINHVIEN
+where MALOP = 'L04'
+--Bước 3:
 select count(*)
 from SINHVIEN
 where MALOP = 'L04'
 go
---Bước 3:
+--Bước 4:
 update LOP
 set SISO =  (   
                 select count(*)
@@ -202,11 +206,11 @@ set SISO =  (
             )
 where MALOP = 'L04'
 go
---Bước 4:
+--Bước 5:
 select MALOP, SISO
 from LOP
 go
---Bước 5:
+--Bước 6:
 create proc sp_capnhat_siso @malop varchar(10)
 as
 begin 
@@ -217,30 +221,46 @@ begin
     where MALOP = @malop
 end
 go
---Bước 6:
+--Bước 7:
 exec sp_capnhat_siso 'L04'
 go
---Bước 7:
+--Bước 8:
 select * from LOP
 go
---Bước 8:
+--Bước 9:
 drop proc sp_capnhat_siso
 go
+--C2:
+create proc sp_capnhat_siso2
+as
+begin 
+    update LOP
+    set SISO = (select count(*)
+                from SINHVIEN
+                where SINHVIEN.MALOP = LOP.MALOP)
+end
+go
 
+exec sp_capnhat_siso2
+
+select * from LOP
 --câu d
 --Bước 1:
 select * from KETQUA
 go
 --Bước 2:
+select * from KETQUA
+where MASV = 'SV07' and MAMH = 'MH01' and HOCKY = 1
+--Bước 3:
 update KETQUA
 set DIEMTHI = DIEMTHI + 1
 where MASV = 'SV07' and MAMH = 'MH01' and HOCKY = 1
 go
---Bước 3:
+--Bước 4:
 select MASV, MAMH, HOCKY, DIEMTHI
 from KETQUA
 go
---Bước 4:
+--Bước 5:
 create proc sp_cong_diem @masv varchar(10), @mamh varchar(10), @hocky int
 as
 begin
@@ -249,10 +269,10 @@ begin
     where MASV = @masv and MAMH = @mamh and HOCKY = @hocky
 end
 go
---Bước 5:
+--Bước 6:
 exec sp_cong_diem 'SV03', 'MH03', 1
 go
---Bước 6:
+--Bước 7:
 select * from KETQUA
 go
 --Bước 7:
@@ -304,7 +324,6 @@ go
 drop proc sp_tra_ve_sv
 go
 
-
 --câu f 
 --Bước 1:
 select * from SINHVIEN
@@ -320,7 +339,7 @@ from SINHVIEN
 where MASV = 'SV04'
 go
 --Bước 4:
-create proc sp_tra_ve_dtb_xeploai @masv varchar(10), @dtb float output, @xeploai nvarchar(20) output
+alter proc sp_tra_ve_dtb_xeploai @masv varchar(10), @dtb float output, @xeploai nvarchar(20) output
 as
 begin
     select 
@@ -328,12 +347,13 @@ begin
         @xeploai = XEPLOAI
     from SINHVIEN
     where MASV = @masv
+	print cast(@dtb as varchar(20)) + ' ' + @xeploai 
 end
 go
 --Bước 5:
-declare @dtb_output float, @xeploai_output nvarchar(20)
-exec sp_tra_ve_dtb_xeploai 'SV04', @dtb_output output, @xeploai_output output
-print cast(@dtb_output as varchar(20)) + ' ' + @xeploai_output 
+declare @masv varchar(10), @dtb_output float, @xeploai_output nvarchar(20)
+set @masv = 'SV04'
+exec sp_tra_ve_dtb_xeploai @masv, @dtb_output output, @xeploai_output output
 go
 --Bước 6:
 drop sp_tra_ve_dtb_xeploai
@@ -401,7 +421,17 @@ go
 --Bước 2:
 select *
 from KETQUA
-where MASV = 'SV03' and MAMH = 'MH03' and HOCKY = 1
+where MASV = 'SV03' and MAMH = 'MH04' and HOCKY = 2
+go
+--Bước 3:
+select *
+from KETQUA
+where MASV = 'SV03' and MAMH = 'MH02' and HOCKY = 1
+go
+--Bước 4:
+select *
+from KETQUA
+where MASV = 'SV05' and MAMH = 'MH03' and HOCKY = 1
 go
 --Bước 3
 if not exists ( 
@@ -423,7 +453,7 @@ go
 if exists ( 
                 select *
                 from KETQUA
-                where MASV = 'SV03' and MAMH = 'MH03' and HOCKY = 1 and DIEMTHI >= 5
+                where MASV = 'SV03' and MAMH = 'MH04' and HOCKY = 2 and DIEMTHI >= 5
           )               
     print N'Đạt'
 else
@@ -462,7 +492,7 @@ begin
 end
 go
 --Bước 7:
-exec sp_cau_i 'SV03', 'MH03', 1
+exec sp_cau_i 'SV03', 'MH02', 1
 go
 --Bước 8:
 drop proc sp_cau_i
@@ -488,7 +518,7 @@ from MONHOC mh, KETQUA kq
 where mh.MAMH = kq.MAMH and MASV = 'SV02' and HOCKY = 1
 go
 --Bước 5:
-create proc sp_cau_j @masv varchar(10), @hocky int
+create proc sp_cauJ @masv varchar(10), @hocky int, @ketQua nvarchar(20) output
 as
 begin
     declare @dtb float
@@ -497,14 +527,746 @@ begin
     where mh.MAMH = kq.MAMH and MASV = @masv and HOCKY = @hocky
 
     if @dtb >= 8
-        print N'Khen thưởng'
+        set @ketQua =  N'Khen thưởng'
     else
-        print N'Không khen thưởng'
+        set @ketQua = N'Không khen thưởng'
+	print cast(@dtb as varchar(10)) + ' ' + @ketQua
 end
 go
 --Bước 6:
-exec sp_cau_j 'SV02', 1
+create proc sp_ThucThi @masv varchar(10), @hocky int, @ketQua nvarchar(20)
+as 
+begin
+	set @masv = 'SV02'
+	set @hocky = 1
+	exec sp_cauJ @masv, @hocky, @ketQua output
+end
 go
+
+
 --Bước 7
 drop proc sp_cau_j
+go
+
+--Function
+--câu f
+--Bước 1
+select * from SINHVIEN
+go
+--Bước 2:
+select *
+from SINHVIEN
+go
+--Bước 3:
+select SINHVIEN.MASV, SINHVIEN.HOTEN, SINHVIEN.NGSINH
+from SINHVIEN
+where MALOP = 'L02'
+go
+--Bước 4:
+alter function ds_sinhVien(@malop varchar(10))
+returns @ds table (
+						MASV char(4),
+						HOTEN nvarchar(30),
+						NGSINH date
+				  )
+as 
+begin
+	insert into @ds 
+	select SINHVIEN.MASV, SINHVIEN.HOTEN, SINHVIEN.NGSINH
+	from SINHVIEN
+	where MALOP = @malop
+return
+end
+go
+--Bước 6:
+select * from ds_sinhVien('L02')
+go
+
+
+--câu h
+--Bước 1:
+select * from SINHVIEN
+select * from KETQUA
+--Bước 2:
+select *
+from SINHVIEN, KETQUA
+--Bước 3:
+select *
+from SINHVIEN, KETQUA
+where SINHVIEN.MASV = KETQUA.MASV
+--Bước 4:
+select *
+from SINHVIEN
+where not exists (
+						select 1
+						from KETQUA
+						where SINHVIEN.MASV = KETQUA.MASV and MAMH = 'MH04'
+					 )
+--Bước 5:
+select SINHVIEN.MASV, HOTEN, NGSINH
+from SINHVIEN
+where not exists (
+						select 1
+						from KETQUA
+						where SINHVIEN.MASV = KETQUA.MASV and MAMH = 'MH04'
+					 )
+--Bước 6:
+alter function ds_sinhVienKoHoc(@maMon char(4))
+returns @ds table (
+					maSV char(4),
+					hoTen nvarchar(30),
+					ngsinh date
+                  )
+as
+begin
+	insert into @ds
+	select SINHVIEN.MASV, HOTEN, NGSINH
+	from SINHVIEN
+	where not exists (
+						select 1
+						from KETQUA
+						where SINHVIEN.MASV = KETQUA.MASV and MAMH = @maMon
+					 )												
+return
+end
+--Bước 7:
+select * from ds_sinhVienKoHoc('MH04')
+
+--Câu e;
+--Bước 1:
+select * from KETQUA
+select * from MONHOC
+go
+--Bước 2:
+select * 
+from KETQUA, MONHOC
+go
+--Bước 3:
+select * 
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH
+go
+--Bước 4:
+select * 
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH and KETQUA.MASV = 'SV04' and KETQUA.HOCKY = 1 and KETQUA.DIEMTHI >= 5
+go
+--Bước 5:
+select sum(SOTC)
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH and KETQUA.MASV = 'SV04' and KETQUA.HOCKY = 1 and KETQUA.DIEMTHI >= 5
+go
+--Bước 6:
+create function tra_ve_tongtc(@masv varchar(10), @hocky int)
+returns int
+as
+begin
+    declare @tongtc int
+    select @tongtc = sum(mh.SOTC)
+    from KETQUA kq, MONHOC mh
+    where kq.MAMH = mh.MAMH and kq.MASV = @masv and kq.HOCKY = @hocky and kq.DIEMTHI >= 5
+    return @tongtc
+end
+go
+--Bước 7:
+select dbo.tra_ve_tongtc('SV04', 1) as TinChiDat
+go
+--Bước 8:
+drop function tra_ve_tongtc
+
+--câu a
+--Bước 1:
+select * from MONHOC
+go
+--Bước 2:
+select *
+from MONHOC
+where MAMH = 'MH01'
+go
+--Bước 3:
+select SOTC
+from MONHOC
+where MAMH = 'MH01'
+go
+--Bước 4:
+create function tra_ve_sotc(@mamh varchar(10))
+returns int
+as
+begin
+    declare @sotc int
+
+    select @sotc = SOTC
+    from MONHOC
+    where MAMH = @mamh
+
+    return @sotc
+end
+go
+--Bước 5:
+select dbo.tra_ve_sotc('MH01') as SoTinChi
+go
+--Bước 6:
+drop function tra_ve_sotc
+go
+
+
+--câu b
+--Bước 1:
+select * from KETQUA
+go
+--Bước 2:
+select *
+from KETQUA
+where MASV = 'SV01'
+go
+--Bước 3:
+select DIEMTHI
+from KETQUA
+where MASV = 'SV01'
+go
+--Bước 4:
+select avg(DIEMTHI)
+from KETQUA
+where MASV = 'SV01'
+go
+--Bước 5:
+create function tra_ve_dtb(@masv varchar(10))
+returns float
+as
+begin
+    declare @dtb float
+
+    select @dtb = avg(DIEMTHI)
+    from KETQUA
+    where MASV = @masv
+
+    return @dtb
+end
+go
+--Bước 6:
+select dbo.tra_ve_dtb('SV01') as DiemTrungBinh
+go
+--Bước 7:
+drop function tra_ve_dtb
+go
+
+
+--câu c
+--Bước 1:
+select * from KETQUA
+go
+--Bước 2:
+select *
+from KETQUA
+where MAMH = 'MH01'
+go
+--Bước 3:
+select *
+from KETQUA
+where MAMH = 'MH01' and HOCKY = 1
+go
+--Bước 4:
+select count(MASV)
+from KETQUA
+where MAMH = 'MH01' and HOCKY = 1
+go
+--Bước 5:
+create function tra_ve_tong_sv(@mamh varchar(10), @hocky int)
+returns int
+as
+begin
+    declare @tongsv int
+
+    select @tongsv = count(MASV)
+    from KETQUA
+    where MAMH = @mamh and HOCKY = @hocky
+
+    return @tongsv
+end
+go
+--Bước 6:
+select dbo.tra_ve_tong_sv('MH01', 1) as TongSoSV
+go
+--Bước 7:
+drop function tra_ve_tong_sv
+go
+
+
+--câu d
+--Bước 1:
+select * from KETQUA
+go
+--Bước 2:
+select *
+from KETQUA
+where MASV = 'SV01'
+go
+--Bước 3:
+select *
+from KETQUA
+where MASV = 'SV01' and MAMH = 'MH01'
+go
+--Bước 4:
+select DIEMTHI
+from KETQUA
+where MASV = 'SV01' and MAMH = 'MH01'
+go
+--Bước 5:
+create function tra_ve_diemthi(@masv varchar(10), @mamh varchar(10))
+returns float
+as
+begin
+    declare @diemthi float
+
+    select @diemthi = DIEMTHI
+    from KETQUA
+    where MASV = @masv and MAMH = @mamh
+
+    return @diemthi
+end
+go
+--Bước 6:
+select dbo.tra_ve_diemthi('SV01', 'MH01') as DiemThi
+go
+--Bước 7:
+drop function tra_ve_diemthi
+go
+
+--câu g
+--Bước 1:
+select * from SINHVIEN
+select * from KETQUA
+select * from LOP
+go
+--Bước 2:
+select *
+from SINHVIEN, KETQUA, LOP
+go
+--Bước 3:
+select *
+from SINHVIEN, KETQUA, LOP
+where SINHVIEN.MASV = KETQUA.MASV
+  and SINHVIEN.MALOP = LOP.MALOP
+go
+--Bước 4:
+select *
+from SINHVIEN, KETQUA, LOP
+where SINHVIEN.MASV = KETQUA.MASV
+  and SINHVIEN.MALOP = LOP.MALOP
+  and KETQUA.MAMH = 'MH01'
+  and KETQUA.HOCKY = 2
+  and KETQUA.DIEMTHI < 5
+go
+--Bước 5:
+select SINHVIEN.MASV, HOTEN, NGSINH, TENLOP
+from SINHVIEN, KETQUA, LOP
+where SINHVIEN.MASV = KETQUA.MASV
+  and SINHVIEN.MALOP = LOP.MALOP
+  and KETQUA.MAMH = 'MH01'
+  and KETQUA.HOCKY = 2
+  and KETQUA.DIEMTHI < 5
+go
+--Bước 6:
+create function ds_sinhVienDiemDuoi5(@mamh varchar(10), @hocky int)
+returns @ds table 
+(
+    MASV varchar(10),
+    HOTEN nvarchar(30),
+    NGSINH date,
+    TENLOP nvarchar(50)
+)
+as
+begin
+    insert into @ds
+    select SINHVIEN.MASV, HOTEN, NGSINH, TENLOP
+    from SINHVIEN, KETQUA, LOP
+    where SINHVIEN.MASV = KETQUA.MASV
+      and SINHVIEN.MALOP = LOP.MALOP
+      and KETQUA.MAMH = @mamh
+      and KETQUA.HOCKY = @hocky
+      and KETQUA.DIEMTHI < 5
+
+    return
+end
+go
+--Bước 7:
+select * from ds_sinhVienDiemDuoi5('MH01', 2)
+go
+--Bước 8:
+drop function ds_sinhVienDiemDuoi5
+go
+
+--câu i
+--Bước 1:
+select * from KETQUA
+select * from MONHOC
+go
+--Bước 2:
+select *
+from KETQUA, MONHOC
+go
+--Bước 3:
+select *
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH
+go
+--Bước 4:
+select *
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH
+  and MASV = 'SV01'
+go
+--Bước 5:
+select KETQUA.MAMH, TENMH, max(DIEMTHI) as DIEMCAONHAT
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH
+  and MASV = 'SV01'
+group by KETQUA.MAMH, TENMH
+go
+--Bước 6:
+create function ds_monHocDiemCaoNhat(@masv varchar(10))
+returns @ds table 
+(
+    MAMH varchar(10),
+    TENMH nvarchar(100),
+    DIEMCAONHAT float
+)
+as
+begin
+    insert into @ds
+    select KETQUA.MAMH, TENMH, max(DIEMTHI) as DIEMCAONHAT
+    from KETQUA, MONHOC
+    where KETQUA.MAMH = MONHOC.MAMH
+      and MASV = @masv
+    group by KETQUA.MAMH, TENMH
+
+    return
+end
+go
+--Bước 7:
+select * from ds_monHocDiemCaoNhat('SV01')
+go
+--Bước 8:
+drop function ds_monHocDiemCaoNhat
+go
+
+--trigger
+
+--câu a: Khi thêm, sửa, xóa sinh viên thì tự động cập nhật sĩ số lớp
+--Bước 1:
+select * from LOP
+select * from SINHVIEN
+go
+
+--Bước 2:
+select count(MASV)
+from SINHVIEN
+where MALOP = 'L01'
+go
+--Bước 3:
+insert into SINHVIEN (MASV, HOTEN, NGSINH, GIOITINH, QUEQUAN, MALOP)
+values ('SV13', N'Nguyen Van Test', '2004-11-11', N'Nam', N'HCM', 'L01')
+go
+--Bước 4:
+update LOP
+set SISO = (
+            select count(MASV)
+            from SINHVIEN
+            where SINHVIEN.MALOP = LOP.MALOP
+           )
+where MALOP = 'L01'
+go
+--Bước 5:
+create trigger tri_siso on SINHVIEN
+for insert, update, delete
+as
+begin
+    update LOP
+    set SISO = (
+                select count(MASV)
+                from SINHVIEN
+                where SINHVIEN.MALOP = LOP.MALOP
+               )
+    where MALOP in (select MALOP from inserted)
+       or MALOP in (select MALOP from deleted)
+end
+go
+
+--Bước 6:
+insert into SINHVIEN (MASV, HOTEN, NGSINH, GIOITINH, QUEQUAN, MALOP)
+values ('SV14', N'Nguyen Thi Test', '2004-11-11', N'Nữ', N'HCM', 'L01')
+go
+--Bước 7:
+select * from LOP
+go
+--Bước 8:
+delete from SINHVIEN
+where MASV = 'SV14'
+go
+--Bước 9:
+select * from LOP
+go
+--Bước 10:
+drop trigger tri_siso
+go
+
+
+--câu b: Mỗi sinh viên chỉ được đăng ký tối đa 5 môn trong mỗi học kỳ
+--Bước 1:
+select * from KETQUA
+go
+--Bước 2:
+select *
+from KETQUA
+where MASV = 'SV01' and HOCKY = 1
+go
+--Bước 3: Đếm số môn của SV01 trong học kỳ 1
+select MASV, HOCKY, count(MAMH) as SoMon
+from KETQUA
+where MASV = 'SV01' and HOCKY = 1
+group by MASV, HOCKY
+go
+--Bước 4: Kiểm tra nếu số môn lớn hơn 5
+                select MASV, HOCKY, count(MAMH) as SoMon
+                from KETQUA
+                where MASV = 'SV01' and HOCKY = 1
+                group by MASV, HOCKY
+                having count(MAMH) > 5
+                go
+--Bước 5:
+create trigger tri_dangkymon on KETQUA
+for insert, update
+as 
+begin   
+    if exists (
+                select 1
+                from inserted i, KETQUA kq
+                where i.MASV = kq.MASV 
+                  and i.HOCKY = kq.HOCKY
+                group by kq.MASV, kq.HOCKY
+                having count(kq.MAMH) > 5
+              )
+    begin
+        print N'Mỗi sinh viên chỉ được đăng ký tối đa 5 môn trong mỗi học kỳ'
+        rollback tran
+    end
+end
+go
+
+--Bước 6: Thêm môn học mới để test
+insert into MONHOC values ('MH06', N'Lap trinh web', 3, 0)
+go
+
+--Bước 7: Cho SV01 đăng ký thêm môn học
+insert into KETQUA values ('SV01', 'MH04', 1, 7.0)
+go
+
+--Bước 8: Kiểm tra lại số môn của SV01 trong học kỳ 1
+select *
+from KETQUA
+where MASV = 'SV01' and HOCKY = 1
+go
+
+--Bước 9: Thử đăng ký thêm môn nữa, nếu vượt quá 5 môn thì trigger sẽ chặn
+insert into KETQUA values ('SV01', 'MH05', 1, 8.0)
+go
+
+--Bước 10: Kiểm tra lại xem môn vừa thêm có bị chặn không
+select *
+from KETQUA
+where MASV = 'SV01' and HOCKY = 1
+go
+--Bước 11: Ví dụ thêm quá 5 môn
+insert into KETQUA 
+values ('SV01', 'MH03', 1, 7.5),
+       ('SV01', 'MH06', 1, 8.0)
+go
+--Bước 11:
+drop trigger tri_dangkymon
+go
+
+
+
+--câu c: Mỗi sinh viên chỉ được đăng ký tối đa 10 tín chỉ môn bắt buộc trong mỗi học kỳ
+
+--Bước 1:
+select * from KETQUA
+select * from MONHOC
+go
+
+--Bước 2:
+select *
+from KETQUA, MONHOC
+go
+
+--Bước 3:
+select *
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH
+go
+
+--Bước 4: Tính tổng tín chỉ bắt buộc của SV03 trong học kỳ 1
+select KETQUA.MASV, KETQUA.HOCKY, sum(MONHOC.SOTC) as TongTinChiBatBuoc
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH
+  and MONHOC.BATBUOC = 1
+  and KETQUA.MASV = 'SV03'
+  and KETQUA.HOCKY = 1
+group by KETQUA.MASV, KETQUA.HOCKY
+go
+
+--Bước 5: Kiểm tra nếu tổng tín chỉ bắt buộc lớn hơn 10
+select KETQUA.MASV, KETQUA.HOCKY, sum(MONHOC.SOTC) as TongTinChiBatBuoc
+from KETQUA, MONHOC
+where KETQUA.MAMH = MONHOC.MAMH
+  and MONHOC.BATBUOC = 1
+  and KETQUA.MASV = 'SV03'
+  and KETQUA.HOCKY = 1
+group by KETQUA.MASV, KETQUA.HOCKY
+having sum(MONHOC.SOTC) > 10
+go
+
+--Bước 6:
+create trigger tri_dangkytc on KETQUA
+for insert, update
+as
+begin
+    if exists (
+                select 1
+                from inserted i, KETQUA kq, MONHOC mh
+                where i.MASV = kq.MASV 
+                  and i.HOCKY = kq.HOCKY 
+                  and kq.MAMH = mh.MAMH 
+                  and mh.BATBUOC = 1
+                group by kq.MASV, kq.HOCKY
+                having sum(mh.SOTC) > 10
+              )
+    begin
+        print N'Mỗi sinh viên chỉ được đăng ký tối đa 10 tín chỉ của môn học bắt buộc trong mỗi học kỳ'
+        rollback tran
+    end
+end
+go
+
+--Bước 7: Thêm môn học bắt buộc mới để test
+insert into MONHOC 
+values ('MH07', N'He quan tri co so du lieu', 3, 1),
+       ('MH08', N'The chat', 3, 1)
+go
+
+--Bước 8: Cho SV03 đăng ký thêm môn bắt buộc
+insert into KETQUA values ('SV03', 'MH03', 1, 8.0)
+go
+
+--Bước 10: Thử thêm môn bắt buộc làm vượt quá 10 tín chỉ, trigger sẽ chặn
+insert into KETQUA 
+values ('SV03', 'MH07', 1, 9.0),
+       ('SV03', 'MH08', 1, 9.0)
+go
+
+--Bước 11:
+drop trigger tri_dangkytc
+go
+
+--câu d: Khi thêm hoặc sửa điểm thi thì tự động cập nhật điểm trung bình và xếp loại
+
+--Bước 1:
+select * from KETQUA
+select * from MONHOC
+go
+--Bước 2:
+select *
+from KETQUA , MONHOC 
+go
+--Bước 3:
+select *
+from KETQUA , MONHOC 
+where KETQUA.MAMH = MONHOC.MAMH
+go
+--Bước 4:
+select *
+from KETQUA , MONHOC 
+where KETQUA.MAMH = MONHOC.MAMH and KETQUA.MASV = 'SV02'
+go
+--Bước 3: Tính điểm trung bình của SV02 theo công thức có tín chỉ
+select sum(MONHOC.SOTC * KETQUA.DIEMTHI) / sum(MONHOC.SOTC) as DiemTrungBinh
+from KETQUA , MONHOC
+where KETQUA.MAMH = MONHOC.MAMH
+  and KETQUA.MASV = 'SV02'
+go
+
+--Bước 4: Cập nhật điểm trung bình bằng tay theo công thức có tín chỉ
+update SINHVIEN
+set DIEMTB = (
+                select sum(MONHOC.SOTC * KETQUA.DIEMTHI) / sum(MONHOC.SOTC)
+                from KETQUA, MONHOC
+                where KETQUA.MAMH = MONHOC.MAMH
+                  and KETQUA.MASV = SINHVIEN.MASV
+             )
+where MASV = 'SV02'
+go
+
+--Bước 5: Cập nhật xếp loại bằng tay
+update SINHVIEN
+set XEPLOAI = case
+                when DIEMTB >= 8 then N'Giỏi'
+                when DIEMTB >= 6.5 then N'Khá'
+                when DIEMTB >= 5 then N'Trung bình'
+                when DIEMTB is null then null
+                else N'Yếu'
+              end
+where MASV = 'SV02'
+go
+
+--Bước 6: Kiểm tra DIEMTB và XEPLOAI đã cập nhật chưa
+select MASV, HOTEN, DIEMTB, XEPLOAI
+from SINHVIEN
+where MASV = 'SV02'
+go
+
+--Bước 7:
+create trigger tri_capnhat_dtb_xeploai on KETQUA
+for insert, update
+as
+begin 
+    update SINHVIEN
+    set DIEMTB = (
+                    select sum(MONHOC.SOTC * KETQUA.DIEMTHI) / sum(MONHOC.SOTC)
+                    from KETQUA, MONHOC
+                    where KETQUA.MAMH = MONHOC.MAMH
+                      and KETQUA.MASV = SINHVIEN.MASV
+                 )
+    where MASV in (select MASV from inserted)
+
+    update SINHVIEN
+    set XEPLOAI = case
+                    when DIEMTB >= 8 then N'Giỏi'
+                    when DIEMTB >= 6.5 then N'Khá'
+                    when DIEMTB >= 5 then N'Trung bình'
+                    when DIEMTB is null then null
+                    else N'Yếu'
+                  end
+    where MASV in (select MASV from inserted)
+end
+go
+
+--Bước 8: Sửa điểm thi của SV02 để trigger tự cập nhật điểm trung bình và xếp loại
+update KETQUA
+set DIEMTHI = 9
+where MASV = 'SV02' and MAMH = 'MH01' and HOCKY = 1
+go
+
+--Bước 9: Kiểm tra điểm thi đã sửa chưa
+select *
+from KETQUA
+where MASV = 'SV02'
+go
+
+--Bước 10: Kiểm tra DIEMTB và XEPLOAI đã tự cập nhật chưa
+select MASV, HOTEN, DIEMTB, XEPLOAI
+from SINHVIEN
+where MASV = 'SV02'
+go
+--Bước 11:
+drop trigger tri_capnhat_dtb_xeploai
 go
